@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from collections import defaultdict
 from typing import Any, Dict, List
-
+from konlpy.tag import Okt
 
 def load_jsonl(path: str | Path) -> List[Dict[str, Any]]:
     """
@@ -79,6 +79,7 @@ def build_geo_stopwords_ko_en() -> set[str]:
 
 GEO_STOPWORDS = build_geo_stopwords_ko_en()
 
+okt = Okt()
 
 def record_to_tokens(record: Dict[str, Any]) -> List[str]:
     """
@@ -86,17 +87,17 @@ def record_to_tokens(record: Dict[str, Any]) -> List[str]:
 
     우선순위:
       1) tokens 필드가 있으면 그대로 사용
-      2) text 필드가 있으면 공백 기준으로 토큰화
-
-    더 정교한 한국어 형태소 분석은 이 단계 위에서 별도 전처리로 넣을 수 있음.
+      2) text 필드가 있으면 KoNLPy Okt로 명사만 추출
     """
     if "tokens" in record and record["tokens"]:
         tokens = [str(t).strip() for t in record["tokens"] if str(t).strip()]
         return tokens
     elif "text" in record and record["text"]:
-        text = str(record["text"])
-        # 매우 단순화된 토크나이징: 공백 기준
-        tokens = [t.strip() for t in text.split() if t.strip()]
+        text = str(record["text"]).strip()
+        if not text:
+            return []
+        nouns = okt.nouns(text)  # 명사만 추출
+        tokens = [t.strip() for t in nouns if len(t.strip()) > 1]  # 1글자 제외
         return tokens
     else:
         return []
