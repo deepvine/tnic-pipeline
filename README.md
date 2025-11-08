@@ -15,6 +15,16 @@ tnic-pipeline/
 
 ```
 
+## Prerequisites
+java installation
+```
+apt-get update
+apt-get install -y openjdk-17-jdk
+
+pip install -r requirments.txt
+```
+
+
 ## How to use
 ```
 python -m src.main \
