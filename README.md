@@ -1,1 +1,1 @@
-# tnic-pipeline
+# TNIC-pipeline
