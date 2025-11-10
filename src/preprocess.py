@@ -27,6 +27,120 @@ def load_jsonl(path: str | Path) -> List[Dict[str, Any]]:
             records.append(json.loads(line))
     return records
 
+# 시장 위험 섹션 제거
+def remove_market_risk_section(text: str) -> str:
+    """
+    '시장위험' 또는 '시장위험과 위험관리' 섹션을 찾아
+    다음 섹션 번호(예: \n8. , \n9)) 전까지 삭제.
+    """
+    if not text:
+        return text
+
+    # 찾을 키워드
+    keyword_pattern = r"(시장위험[^\n]*)"   # '시장위험', '시장위험과 위험관리', '시장위험과 위험관리 (연결기준)' 등 포함
+
+    # 다음 섹션 헤더 패턴 (줄바꿈 + 숫자 + . or ) ex) "\n8. ", "\n9) "
+    next_section_pattern = r"\n\s*\d{1,2}\s*[\.\)]\s+"
+
+    # loop: 시장위험이 여러 번 등장할 수도 있으므로 반복 제거
+    while True:
+        m = re.search(keyword_pattern, text)
+        if not m:
+            break
+
+        start_idx = m.start()
+
+        # start 이후에서 다음 섹션 찾기
+        next_header = re.search(next_section_pattern, text[start_idx:])
+        if next_header:
+            end_idx = start_idx + next_header.start()
+            text = text[:start_idx] + text[end_idx:]
+        else:
+            # 다음 섹션 헤더 없으면 그냥 다 지움
+            text = text[:start_idx]
+            break
+
+    return text
+
+#파생상품 섹션 제거 
+def remove_market_derivatives_section(text: str) -> str:
+    """
+    '파생상품' 또는 '시장위험과 위험관리' 섹션을 찾아
+    다음 섹션 번호(예: \n8. , \n9)) 전까지 삭제.
+    """
+    if not text:
+        return text
+
+    # 찾을 키워드
+    keyword_pattern = r"(파생상품[^\n]*)"   # '시장위험', '시장위험과 위험관리', '시장위험과 위험관리 (연결기준)' 등 포함
+
+    # 다음 섹션 헤더 패턴 (줄바꿈 + 숫자 + . or ) ex) "\n8. ", "\n9) "
+    next_section_pattern = r"\n\s*\d{1,2}\s*[\.\)]\s+"
+
+    # loop: 시장위험이 여러 번 등장할 수도 있으므로 반복 제거
+    while True:
+        m = re.search(keyword_pattern, text)
+        if not m:
+            break
+
+        start_idx = m.start()
+
+        # start 이후에서 다음 섹션 찾기
+        next_header = re.search(next_section_pattern, text[start_idx:])
+        if next_header:
+            end_idx = start_idx + next_header.start()
+            text = text[:start_idx] + text[end_idx:]
+        else:
+            # 다음 섹션 헤더 없으면 그냥 다 지움
+            text = text[:start_idx]
+            break
+
+    return text
+
+#위험관리 섹션제거
+def remove_risk_admission_section(text: str) -> str:
+    """
+    '위험관리' 또는 '위험관리 및 파생거래' 섹션을 찾아
+    다음 섹션 번호(예: \n8. , \n9)) 전까지 삭제.
+    """
+    if not text:
+        return text
+
+    # 찾을 키워드
+    keyword_pattern = r"(위험관리 및[^\n]*)"   # '시장위험', '시장위험과 위험관리', '시장위험과 위험관리 (연결기준)' 등 포함
+
+    # 다음 섹션 헤더 패턴 (줄바꿈 + 숫자 + . or ) ex) "\n8. ", "\n9) "
+    next_section_pattern = r"\n\s*\d{1,2}\s*[\.\)]\s+"
+
+    # loop: 시장위험이 여러 번 등장할 수도 있으므로 반복 제거
+    while True:
+        m = re.search(keyword_pattern, text)
+        if not m:
+            break
+
+        start_idx = m.start()
+
+        # start 이후에서 다음 섹션 찾기
+        next_header = re.search(next_section_pattern, text[start_idx:])
+        if next_header:
+            end_idx = start_idx + next_header.start()
+            text = text[:start_idx] + text[end_idx:]
+        else:
+            # 다음 섹션 헤더 없으면 그냥 다 지움
+            text = text[:start_idx]
+            break
+
+    return text
+
+def clean_kor_eng_text(text: str) -> str:
+    if not text:
+        return text
+    # 한글, 영어, 공백 제외 모두 제거
+    text = re.sub(r"[^가-힣a-zA-Z\s]", "", text)
+    
+    # 공백 2칸 이상 → 1칸으로 정리
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 def group_by_year(records: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
     """
