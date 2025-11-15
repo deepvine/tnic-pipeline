@@ -132,6 +132,31 @@ def remove_risk_admission_section(text: str) -> str:
 
     return text
 
+
+TERMS_TO_REMOVE = [
+    "금액", "비중", "KRW", "USD", "백만원", "억원",
+    "단위", "총매출액", "순매출액", "매출액", "년"
+]
+
+def remove_specific_terms(text: str) -> str:
+    """
+    TERMS_TO_REMOVE에 포함된 단어만 제거하고,
+    나머지 텍스트는 그대로 유지
+    """
+    if not text:
+        return text
+
+    # 제거할 단어를 OR 정규식 패턴으로 변환
+    pattern = r"|".join(map(re.escape, TERMS_TO_REMOVE))
+
+    # 단어 제거 (대소문자 무시)
+    text = re.sub(pattern, " ", text, flags=re.IGNORECASE)
+
+    # 중복 공백 정리
+    text = re.sub(r"\s+", " ", text).strip()
+    
+    return text
+
 def clean_kor_eng_text(text: str) -> str:
     if not text:
         return text
