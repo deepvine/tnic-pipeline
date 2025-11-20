@@ -11,7 +11,7 @@ import numpy as np
 
 from .preprocess import load_jsonl, group_by_year, GEO_STOPWORDS
 from .vectorize import build_year_filtered_texts
-from .bert_encoder import BertEncoder
+from .bert_encoder import BertEncoder   # ← 새로 추가
 from .similarity import (
     l2_normalize_rows_dense,
     compute_cosine_similarity_matrix_dense,
@@ -32,7 +32,7 @@ def process_year(
     단일 연도에 대해 전체 파이프라인 수행:
 
       1) 한국어 텍스트에서 토큰 추출 후
-         - 25% 이상 기업이 사용하는 토큰 제거
+         - max_doc_freq_ratio 이상 기업이 사용하는 토큰 제거
          - 지리 관련 토큰 제거
       2) 남은 토큰을 공백으로 join → clean_text
       3) BERT 임베딩 생성 (기업별 벡터)
@@ -59,7 +59,7 @@ def process_year(
         return
 
     # 2. BERT 임베딩 생성
-    print(f"- encoding texts with BERT: model={encoder.model_name}")
+    print(f"- encoding texts with encoder: {type(encoder).__name__}")
     embeddings = encoder.encode_texts(clean_texts)  # (num_firms, hidden_size)
     print(f"- embeddings shape: {embeddings.shape}")
 
@@ -106,24 +106,86 @@ def process_year(
     print(f"- saved similarity matrices and edges for year {year}")
 
 
+def _load_all_records(
+    input_path: str | Path | None,
+    input_dir: str | Path | None,
+) -> List[Dict[str, Any]]:
+    """
+    단일 jsonl 파일 또는 디렉터리(아래의 모든 .jsonl)를 읽어 전체 records 리스트로 반환.
+    """
+    records: List[Dict[str, Any]] = []
+
+    # 2019년 사업보고서만 대상
+    TARGET_YEAR = 2019
+
+    if input_dir is not None:
+        base = Path(input_dir)
+
+        # 예시 구조:
+        # input_dir/
+        #   ├─ 삼성전자/
+        #   │    ├─ 사업보고서(2018).jsonl
+        #   │    └─ 사업보고서(2019).jsonl
+        #   ├─ 현대자동차/
+        #   │    └─ 사업보고서(2019).jsonl
+        #   └─ ...
+        #
+        # 위와 같은 구조에서 2019년 파일만 찾기
+        pattern = f"*{TARGET_YEAR}*.jsonl"
+        jsonl_files = sorted(base.glob(pattern))
+
+        if not jsonl_files:
+            raise FileNotFoundError(
+                f"input_dir={input_dir} 아래에서 {TARGET_YEAR}년 사업보고서 패턴({pattern})에 맞는 .jsonl 파일이 없습니다."
+            )
+
+        print(
+            f"[INFO] input_dir={input_dir} 에서 "
+            f"{TARGET_YEAR}년 사업보고서 jsonl 파일 {len(jsonl_files)}개를 로딩합니다."
+        )
+
+        # 회사별 2019년 사업보고서 파일 이터레이션
+        for p in jsonl_files:
+            company_name = p.parent.name  # 상위 디렉터리명을 회사 이름으로 활용
+            print(f"  - 회사: {company_name}, 파일: {p.name}, 경로: {p}")
+
+            rs = load_jsonl(p)
+            records.extend(rs)
+
+    elif input_path is not None:
+        p = Path(input_path)
+        if not p.exists():
+            raise FileNotFoundError(f"입력 파일이 존재하지 않습니다: {p}")
+        print(f"[INFO] input file={p} 로딩")
+        records = load_jsonl(p)
+    else:
+        raise ValueError("input 또는 input_dir 중 하나는 반드시 지정해야 합니다.")
+
+    print(f"[INFO] 총 records 수: {len(records)}")
+    return records
+
+
+
 def process_all_years(
-    jsonl_path: str | Path,
+    input_path: str | Path | None,
+    input_dir: str | Path | None,
     output_dir: str | Path,
     encoder: BertEncoder,
     similarity_threshold: float = 0.2132,
     max_doc_freq_ratio: float = 0.25,
 ) -> None:
     """
-    전체 jsonl 파일을 읽고 연도별로 분리한 뒤,
-    각 연도에 대해 process_year 실행.
+    전체 jsonl 파일(또는 디렉터리)을 읽고 연도별로 분리한 뒤,
+    각 연도에 대해 BERT 임베딩 기반 TNIC 네트워크를 생성한다.
     """
-    jsonl_path = Path(jsonl_path)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    records = load_jsonl(jsonl_path)
+    # 1) 전체 records 로드
+    records = _load_all_records(input_path=input_path, input_dir=input_dir)
     by_year = group_by_year(records)
 
+    # 2) BERT는 별도의 fit 과정 없이 바로 encode_texts를 사용
     for year, year_records in sorted(by_year.items()):
         process_year(
             year=year,
@@ -137,12 +199,17 @@ def process_all_years(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="TNIC 파이프라인 (한국어 BERT 기반 기업 유사도 네트워크 생성)"
+        description="TNIC 파이프라인 (한국어 BERT 임베딩 기반 기업 유사도 네트워크 생성)"
     )
-    parser.add_argument(
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "--input",
-        required=True,
         help="입력 jsonl 파일 경로 (firm_id, year, text 또는 tokens 필드를 포함)",
+    )
+    group.add_argument(
+        "--input_dir",
+        help="여러 jsonl 파일이 들어 있는 디렉터리 경로 (하위 *.jsonl 전체 사용)",
     )
     parser.add_argument(
         "--output_dir",
@@ -161,45 +228,58 @@ def parse_args() -> argparse.Namespace:
         default=0.25,
         help="전체 기업의 몇 퍼센트 이상이 사용하는 토큰을 제거할지 비율 (기본 0.25)",
     )
+
+    # BERT 관련 옵션
     parser.add_argument(
-        "--bert_model",
+        "--bert_model_name",
         type=str,
-        default="klue/bert-base",
-        help="사용할 한국어 BERT 모델 이름 (예: klue/bert-base)",
+        default="skt/kobert-base-v1",
+        help="HuggingFace BERT 계열 모델 이름 (기본 skt/kobert-base-v1)",
     )
     parser.add_argument(
-        "--device",
+        "--bert_device",
         type=str,
-        default="cpu",
-        help="모델을 올릴 디바이스 (예: cpu, cuda, cuda:0 등)",
+        default=None,
+        help="모델 디바이스 설정 (예: cpu, cuda, cuda:0). 기본값은 자동 선택.",
     )
     parser.add_argument(
-        "--max_length",
+        "--bert_batch_size",
         type=int,
-        default=512,
-        help="BERT 토크나이저 max_length (기본 512)",
+        default=16,
+        help="BERT 인코딩 배치 크기 (기본 16)",
     )
     parser.add_argument(
-        "--batch_size",
+        "--bert_max_length",
         type=int,
-        default=8,
-        help="BERT 인퍼런스 배치 크기 (기본 8)",
+        default=256,
+        help="BERT 토크나이저 max_length (기본 256)",
     )
+    parser.add_argument(
+        "--bert_pooler",
+        type=str,
+        default="cls",
+        choices=["cls", "mean"],
+        help="문장 임베딩 풀링 방식: cls 또는 mean (기본 cls)",
+    )
+
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
 
+    # BERT 인코더 생성
     encoder = BertEncoder(
-        model_name=args.bert_model,
-        device=args.device,
-        max_length=args.max_length,
-        batch_size=args.batch_size,
+        model_name=args.bert_model_name,
+        device=args.bert_device,
+        batch_size=args.bert_batch_size,
+        max_length=args.bert_max_length,
+        pooler=args.bert_pooler,
     )
 
     process_all_years(
-        jsonl_path=args.input,
+        input_path=args.input,
+        input_dir=args.input_dir,
         output_dir=args.output_dir,
         encoder=encoder,
         similarity_threshold=args.threshold,

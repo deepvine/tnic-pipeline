@@ -7,6 +7,7 @@ from pathlib import Path
 from collections import defaultdict
 from typing import Any, Dict, List
 from konlpy.tag import Okt
+import re
 
 def load_jsonl(path: str | Path) -> List[Dict[str, Any]]:
     """
@@ -62,7 +63,7 @@ def remove_market_risk_section(text: str) -> str:
 
     return text
 
-#파생상품 섹션 제거 
+# 파생상품 섹션 제거 
 def remove_market_derivatives_section(text: str) -> str:
     """
     '파생상품' 또는 '시장위험과 위험관리' 섹션을 찾아
@@ -97,7 +98,7 @@ def remove_market_derivatives_section(text: str) -> str:
 
     return text
 
-#위험관리 섹션제거
+# 위험관리 섹션제거
 def remove_risk_admission_section(text: str) -> str:
     """
     '위험관리' 또는 '위험관리 및 파생거래' 섹션을 찾아
@@ -173,6 +174,8 @@ def group_by_year(records: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any
     """
     by_year: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
     for r in records:
+        if len(r.keys()) == 1:
+            r = r[list(r.keys())[0]]
         year = int(r["year"])
         by_year[year].append(r)
     return by_year
@@ -228,7 +231,11 @@ def record_to_tokens(record: Dict[str, Any]) -> List[str]:
       1) tokens 필드가 있으면 그대로 사용
       2) text 필드가 있으면 KoNLPy Okt로 명사만 추출
     """
-    if "tokens" in record and record["tokens"]:
+    if isinstance(record, str):
+        nouns = okt.nouns(record)
+        tokens = [t.strip() for t in nouns if len(t.strip()) > 1]  # 1글자 제외
+        return tokens
+    elif "tokens" in record and record["tokens"]:
         tokens = [str(t).strip() for t in record["tokens"] if str(t).strip()]
         return tokens
     elif "text" in record and record["text"]:

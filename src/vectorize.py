@@ -27,38 +27,38 @@ def build_year_filtered_texts(
 
     반환:
       - clean_texts: 각 기업에 대해 필터링된 텍스트 문자열 리스트
-      - firm_ids: clean_texts와 같은 순서의 firm_id 리스트
+      - corp_codes: clean_texts와 같은 순서의 corp_code 리스트
       - df_counts: 토큰 -> 해당 연도에서 몇 개 기업이 사용했는지
       - high_freq_tokens: 너무 흔해서 제거된 토큰 리스트
     """
     # 1. 기업별 토큰 및 문서 빈도 계산
-    firm_ids: List[str] = []
+    corp_codes: List[str] = []
     firm_tokens_list: List[List[str]] = []
     df_counter: Counter[str] = Counter()
 
     for r in year_records:
-        firm_id = str(r["firm_id"])
-        tokens_raw = record_to_tokens(r)
+        corp_code = str(r["corp_code"])
+        tokens_raw = record_to_tokens(r['parsed_business_content'])
         # 한국어는 대소문자 구분이 크게 없지만, 영어 대비를 위해 소문자 변환
         tokens_norm = [t.lower() for t in tokens_raw]
 
-        firm_ids.append(firm_id)
+        corp_codes.append(corp_code)
         firm_tokens_list.append(tokens_norm)
 
         unique_tokens = set(tokens_norm)
         for w in unique_tokens:
             df_counter[w] += 1
 
-    num_firms = len(firm_ids)
+    num_firms = len(corp_codes)
     max_df = max_doc_freq_ratio * num_firms
-
+    max_df = 5
     # 2. 25% 이상 기업이 사용하는 토큰 필터링
     df_counts: Dict[str, int] = {}
     high_freq_tokens: List[str] = []
     for w, df in df_counter.items():
         df_counts[w] = df
-        if df > max_df:
-            high_freq_tokens.append(w)
+        # if df > max_df:
+        #     high_freq_tokens.append(w)
 
     high_freq_set = set(high_freq_tokens)
 
@@ -67,9 +67,9 @@ def build_year_filtered_texts(
 
     # 3. 각 기업별 clean_text 생성
     clean_texts: List[str] = []
-    filtered_firm_ids: List[str] = []
+    filtered_corp_codes: List[str] = []
 
-    for firm_id, tokens in zip(firm_ids, firm_tokens_list):
+    for corp_code, tokens in zip(corp_codes, firm_tokens_list):
         filtered_tokens: List[str] = []
         for t in tokens:
             # 빈 토큰 건너뜀
@@ -86,6 +86,6 @@ def build_year_filtered_texts(
         # 완전히 비어있으면 스킵할 수도 있지만, 여기서는 그대로 두고 빈 문자열로 처리
         clean_text = " ".join(filtered_tokens).strip()
         clean_texts.append(clean_text)
-        filtered_firm_ids.append(firm_id)
+        filtered_corp_codes.append(corp_code)
 
-    return clean_texts, filtered_firm_ids, df_counts, high_freq_tokens
+    return clean_texts, filtered_corp_codes, df_counts, high_freq_tokens

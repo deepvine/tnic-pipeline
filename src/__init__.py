@@ -10,4 +10,5 @@ __all__ = [
     "bert_encoder",
     "similarity",
     "network",
+    "tfidf_encoder"
 ]
