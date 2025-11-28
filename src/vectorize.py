@@ -33,16 +33,20 @@ def build_year_filtered_texts(
     """
     # 1. 기업별 토큰 및 문서 빈도 계산
     corp_codes: List[str] = []
+    corp_names: List[str] = []
     firm_tokens_list: List[List[str]] = []
     df_counter: Counter[str] = Counter()
 
     for r in year_records:
-        corp_code = str(r["corp_code"])
+        # corp_code = str(r["corp_code"])
+        corp_code = str(r["stock_code"])
+        corp_name = str(r["corp_name"])
         tokens_raw = record_to_tokens(r['parsed_business_content'])
         # 한국어는 대소문자 구분이 크게 없지만, 영어 대비를 위해 소문자 변환
         tokens_norm = [t.lower() for t in tokens_raw]
 
         corp_codes.append(corp_code)
+        corp_names.append(corp_name)
         firm_tokens_list.append(tokens_norm)
 
         unique_tokens = set(tokens_norm)
@@ -68,8 +72,9 @@ def build_year_filtered_texts(
     # 3. 각 기업별 clean_text 생성
     clean_texts: List[str] = []
     filtered_corp_codes: List[str] = []
+    filtered_corp_names: List[str] = []
 
-    for corp_code, tokens in zip(corp_codes, firm_tokens_list):
+    for corp_code, corp_name, tokens in zip(corp_codes, corp_names, firm_tokens_list):
         filtered_tokens: List[str] = []
         for t in tokens:
             # 빈 토큰 건너뜀
@@ -87,5 +92,6 @@ def build_year_filtered_texts(
         clean_text = " ".join(filtered_tokens).strip()
         clean_texts.append(clean_text)
         filtered_corp_codes.append(corp_code)
+        filtered_corp_names.append(corp_name)
 
-    return clean_texts, filtered_corp_codes, df_counts, high_freq_tokens
+    return clean_texts, filtered_corp_codes, filtered_corp_names, df_counts, high_freq_tokens

@@ -6,8 +6,18 @@ import json
 from pathlib import Path
 from collections import defaultdict
 from typing import Any, Dict, List
-from konlpy.tag import Okt
+# from konlpy.tag import Okt
+from kiwipiepy import Kiwi
 import re
+
+kiwi = Kiwi()
+
+def extract_nouns(text):
+    tokens = kiwi.tokenize(text)
+
+    nouns = [t.form for t in tokens if t.tag.startswith("NN")]
+
+    return nouns
 
 def load_jsonl(path: str | Path) -> List[Dict[str, Any]]:
     """
@@ -221,7 +231,7 @@ def build_geo_stopwords_ko_en() -> set[str]:
 
 GEO_STOPWORDS = build_geo_stopwords_ko_en()
 
-okt = Okt()
+# okt = Okt()
 
 def record_to_tokens(record: Dict[str, Any]) -> List[str]:
     """
@@ -232,7 +242,8 @@ def record_to_tokens(record: Dict[str, Any]) -> List[str]:
       2) text 필드가 있으면 KoNLPy Okt로 명사만 추출
     """
     if isinstance(record, str):
-        nouns = okt.nouns(record)
+        # nouns = okt.nouns(record)
+        nouns = extract_nouns(record)
         tokens = [t.strip() for t in nouns if len(t.strip()) > 1]  # 1글자 제외
         return tokens
     elif "tokens" in record and record["tokens"]:
@@ -242,7 +253,8 @@ def record_to_tokens(record: Dict[str, Any]) -> List[str]:
         text = str(record["text"]).strip()
         if not text:
             return []
-        nouns = okt.nouns(text)  # 명사만 추출
+        # nouns = okt.nouns(text)
+        nouns = extract_nouns(record)
         tokens = [t.strip() for t in nouns if len(t.strip()) > 1]  # 1글자 제외
         return tokens
     else:

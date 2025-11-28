@@ -10,6 +10,7 @@ import numpy as np
 def build_tnic_edges(
     S: np.ndarray,
     firm_ids: List[str],
+    firm_names: List[str],
     year: int,
     threshold: float = 0.2132,
 ) -> List[Dict[str, Any]]:
@@ -31,7 +32,9 @@ def build_tnic_edges(
                     {
                         "year": year,
                         "firm_i": firm_ids[i],
+                        "firm_i_name": firm_names[i],
                         "firm_j": firm_ids[j],
+                        "firm_j_name": firm_names[j],
                         "similarity": sim,
                     }
                 )

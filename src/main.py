@@ -11,7 +11,7 @@ import numpy as np
 
 from .preprocess import load_jsonl, group_by_year, GEO_STOPWORDS
 from .vectorize import build_year_filtered_texts
-from .bert_encoder import BertEncoder   # ← 새로 추가
+from .bert_encoder import BertEncoder
 from .similarity import (
     l2_normalize_rows_dense,
     compute_cosine_similarity_matrix_dense,
@@ -45,7 +45,7 @@ def process_year(
     print(f"===== Processing year {year} (num_records={len(year_records)}) =====")
 
     # 1. clean_text 생성
-    clean_texts, firm_ids, df_counts, high_freq_tokens = build_year_filtered_texts(
+    clean_texts, firm_ids, firm_names, df_counts, high_freq_tokens = build_year_filtered_texts(
         year_records,
         geo_stopwords=GEO_STOPWORDS,
         max_doc_freq_ratio=max_doc_freq_ratio,
@@ -77,6 +77,7 @@ def process_year(
     edges = build_tnic_edges(
         S,
         firm_ids,
+        firm_names,
         year=year,
         threshold=similarity_threshold,
     )
@@ -101,7 +102,7 @@ def process_year(
     edges_path = output_dir / f"tnic_edges_{year_prefix}.jsonl"
     with edges_path.open("w", encoding="utf-8") as f:
         for e in edges:
-            f.write(json.dumps(e) + "\n")
+            f.write(json.dumps(e, ensure_ascii=False) + "\n")
 
     print(f"- saved similarity matrices and edges for year {year}")
 
@@ -132,7 +133,8 @@ def _load_all_records(
         #
         # 위와 같은 구조에서 2019년 파일만 찾기
         pattern = f"*{TARGET_YEAR}*.jsonl"
-        jsonl_files = sorted(base.glob(pattern))
+        # jsonl_files = sorted(base.glob(pattern))
+        jsonl_files = sorted(base.rglob(pattern))
 
         if not jsonl_files:
             raise FileNotFoundError(
