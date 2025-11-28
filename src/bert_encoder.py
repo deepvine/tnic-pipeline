@@ -1,73 +1,66 @@
 # src/bert_encoder.py
 
-from __future__ import annotations
-
-from typing import List
+from dataclasses import dataclass
+from typing import List, Optional
 
 import numpy as np
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoModel, AutoTokenizer
 
 
+@dataclass
 class BertEncoder:
-    """
-    한국어 BERT 기반 문서 임베딩 생성기.
+    model_name: str = "skt/kobert-base-v1"
+    device: Optional[str] = None
+    batch_size: int = 16
+    max_length: int = 256
+    pooler: str = "cls"  # "cls" 또는 "mean"
 
-    기본값은 klue/bert-base 이지만,
-    main에서 인자로 다른 모델 이름을 넘겨도 됨.
-    """
+    def __post_init__(self):
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModel.from_pretrained(self.model_name)
 
-    def __init__(
-        self,
-        model_name: str = "klue/bert-base",
-        device: str = "cpu",
-        max_length: int = 512,
-        batch_size: int = 8,
-    ) -> None:
-        self.model_name = model_name
-        self.device = torch.device(device)
-        self.max_length = max_length
-        self.batch_size = batch_size
+        if self.device is None:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
         self.model.to(self.device)
         self.model.eval()
 
     @torch.no_grad()
     def encode_texts(self, texts: List[str]) -> np.ndarray:
         """
-        입력 텍스트 리스트를 BERT [CLS] 임베딩으로 변환.
-
-        반환:
-          - shape: (len(texts), hidden_size) 의 numpy 배열
+        입력: 텍스트 리스트
+        출력: numpy 배열 (num_texts, hidden_size)
         """
-        all_embeddings: List[np.ndarray] = []
+        all_embeddings = []
 
-        for start in range(0, len(texts), self.batch_size):
-            batch_texts = texts[start:start + self.batch_size]
-            # 빈 문자열 방어
-            batch_texts = [t if t.strip() else "[PAD]" for t in batch_texts]
+        for i in range(0, len(texts), self.batch_size):
+            batch_texts = texts[i : i + self.batch_size]
 
-            enc = self.tokenizer(
+            inputs = self.tokenizer(
                 batch_texts,
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
                 return_tensors="pt",
             )
-            enc = {k: v.to(self.device) for k, v in enc.items()}
 
-            outputs = self.model(**enc)
-            # last_hidden_state: (batch, seq_len, hidden)
-            # [CLS] 토큰은 보통 index 0
-            cls_embeddings = outputs.last_hidden_state[:, 0, :]  # (batch, hidden)
-            cls_embeddings = cls_embeddings.cpu().numpy()
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            outputs = self.model(**inputs)  # last_hidden_state: (B, L, H)
 
-            all_embeddings.append(cls_embeddings)
+            if self.pooler == "cls":
+                # [CLS] 토큰 벡터 사용
+                emb = outputs.last_hidden_state[:, 0, :]  # (B, H)
+            elif self.pooler == "mean":
+                # attention_mask 기반 mean pooling
+                mask = inputs["attention_mask"].unsqueeze(-1)  # (B, L, 1)
+                masked_hidden = outputs.last_hidden_state * mask
+                sum_hidden = masked_hidden.sum(dim=1)  # (B, H)
+                lengths = mask.sum(dim=1).clamp(min=1)  # (B, 1)
+                emb = sum_hidden / lengths
+            else:
+                raise ValueError(f"Unknown pooler: {self.pooler}")
 
-        if not all_embeddings:
-            return np.zeros((0, self.model.config.hidden_size), dtype=np.float32)
+            all_embeddings.append(emb.cpu().numpy())
 
-        embeddings = np.vstack(all_embeddings).astype(np.float32)
-        return embeddings
+        return np.vstack(all_embeddings)
