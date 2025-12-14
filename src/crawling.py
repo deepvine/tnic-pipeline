@@ -50,7 +50,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =========================================
 # 0. 환경 설정
 # =========================================
-API_KEY = "bb8e62b32c1263c6c7dbbbc65daff56268ded223"   # 🔥 본인 API KEY
+API_KEY = "key"   # 본인 API KEY
 OUTPUT_DIR = "/content//matched_files"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
