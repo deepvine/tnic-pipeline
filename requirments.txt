@@ -7,3 +7,5 @@ scikit-learn
 joblib
 matplot
 pandas
+sentence_transformers
+tiktoken
