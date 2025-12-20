@@ -181,15 +181,13 @@ def clean_kor_eng_text(text: str) -> str:
 def group_by_year(records: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
     """
     레코드를 year 기준으로 묶어서 반환.
+    (이미 _load_all_records에서 unwrap과 year 설정이 완료됨)
     """
     by_year: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
     for r in records:
-        if len(r.keys()) == 1:
-            r = r[list(r.keys())[0]]
         year = int(r["year"])
         by_year[year].append(r)
     return by_year
-
 
 def build_geo_stopwords_ko_en() -> set[str]:
     """
