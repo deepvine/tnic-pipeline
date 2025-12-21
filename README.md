@@ -21,6 +21,8 @@ tnic-pipeline/
  ├── evaluation/                     # 결과 평가 스크립트
  ├── data/
  │   └── 10k_jsonl/                  # 입력 데이터(JSONL)
+ │   └── eda_stats.py                # Jsonl 을 CSV df 로 변환
+ │   └── eda_plot.py                 # 시각화 코드
  ├── output/                         # 미리 생성된 2024년 분석 결과
  │   ├── tfidf/
  │   │   └── tnic_edges_2024.jsonl
@@ -80,6 +82,23 @@ tnic_edges_YYYY.jsonl           # 최종 TNIC 네트워크 엣지
 ```
 
 ---
+## 데이터 전체 구조 분석(EDA) 및 시각화
+
+### 1. 연도별 사업보고서 수 및 데이터 분포
+python eda_stats.py 실행
+분석에 사용된 사업보고서 데이터의 연도별 분포를 살펴본다.
+
+
+
+### 2. 연도별 사업보고서 텍스트 길이 특성 분석
+python eda_plot.py 실행
+사업보고서의 텍스트 길이는 기업의 공시 범위 및 정보 밀도를 간접적으로 반영한다.
+
+
+
+---
+
+
 
 ## Backend별 실행 방법
 
