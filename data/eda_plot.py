@@ -1,158 +1,119 @@
 import os
-import json
-import glob
-import argparse
 import pandas as pd
-from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 # =========================
-# JSONL 로드
+# 경로
 # =========================
-def load_all_jsonl(jsonl_root, text_key, year_key):
-    paths = glob.glob(os.path.join(jsonl_root, "**/*.jsonl"), recursive=True)
-    print(f"[INFO] Found jsonl files: {len(paths)}")
-
-    rows = []
-    for p in tqdm(paths, desc="Reading jsonl"):
-        with open(p, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    obj = json.loads(line)
-                    obj["_source_file"] = os.path.basename(p)
-                    rows.append(obj)
-                except json.JSONDecodeError:
-                    continue
-
-    df = pd.DataFrame(rows)
-
-    if year_key not in df.columns:
-        raise KeyError(f"{year_key} not found in columns")
-    if text_key not in df.columns:
-        raise KeyError(f"{text_key} not found in columns")
-
-    df = df.dropna(subset=[year_key, text_key]).copy()
-    df[year_key] = df[year_key].astype(int)
-    df["text"] = df[text_key].astype(str)
-
-    return df
-
+DATA_DIR = "eda_outputs"
+FIG_DIR = os.path.join(DATA_DIR, "figures")
+os.makedirs(FIG_DIR, exist_ok=True)
 
 # =========================
-# 형태소 분석기
+# CSV 로드
 # =========================
-def load_analyzer():
-    try:
-        from konlpy.tag import Mecab
-        return Mecab()
-    except:
-        from konlpy.tag import Okt
-        return Okt()
+char_df = pd.read_csv(os.path.join(DATA_DIR, "year_char_stats.csv"))
+word_df = pd.read_csv(os.path.join(DATA_DIR, "year_word_stats.csv"))
 
-
-def count_nouns(analyzer, text):
-    try:
-        return len(analyzer.nouns(text))
-    except:
-        return 0
-
+# 안전: year 정렬
+char_df["year"] = pd.to_numeric(char_df["year"], errors="coerce")
+word_df["year"] = pd.to_numeric(word_df["year"], errors="coerce")
+char_df = char_df.sort_values("year")
+word_df = word_df.sort_values("year")
 
 # =========================
-# main
+# 유틸
 # =========================
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--jsonl_dir",
-        default="final_jsonl_filled_v2/final_jsonl_filled_v2",
-        help="jsonl root directory"
+def save_show(fig_name: str):
+    out = os.path.join(FIG_DIR, fig_name)
+    plt.tight_layout()
+    plt.savefig(out, dpi=200)
+    plt.show()
+    print("saved:", out)
+
+def minmax(x):
+    x = x.astype(float)
+    return (x - x.min()) / (x.max() - x.min()) if x.max() != x.min() else x * 0
+
+# =========================
+# 0) 체크: 컬럼 존재 확인 (count는 char 기준만!)
+# =========================
+required_char_cols = {"year", "count"}
+required_len_cols = {"year", "mean", "max"}
+
+missing_char = required_char_cols - set(char_df.columns)
+missing_char_len = required_len_cols - set(char_df.columns)
+missing_word_len = required_len_cols - set(word_df.columns)
+
+if missing_char:
+    print("⚠️ year_char_stats.csv missing:", missing_char)
+if missing_char_len:
+    print("⚠️ year_char_stats.csv missing (length cols):", missing_char_len)
+if missing_word_len:
+    print("⚠️ year_word_stats.csv missing (length cols):", missing_word_len)
+
+# ============================================================
+# 1) 연도별 사업보고서 수 시각화 (count)  
+# ============================================================
+plt.figure(figsize=(10, 4))
+plt.bar(char_df["year"], char_df["count"])
+plt.title("Number of Business Reports by Year")
+plt.xlabel("Year")
+plt.ylabel("# of Reports")
+plt.grid(axis="y", alpha=0.3)
+save_show("01_year_report_count.png")
+
+# ============================================================
+# 2) 연도별 사업보고서 길이 시각화 
+#   - (2-1) Characters: 평균 & 최대
+#   - (2-2) Words: 평균 & 최대
+# ============================================================
+
+# (2-1) Characters
+plt.figure(figsize=(10, 4))
+plt.plot(char_df["year"], char_df["mean"], marker="o", label="Mean (chars)")
+plt.plot(char_df["year"], char_df["max"], marker="o", label="Max (chars)")
+plt.title("Report Length by Year (Characters): Mean & Max")
+plt.xlabel("Year")
+plt.ylabel("# of Characters")
+plt.legend()
+plt.grid(True, alpha=0.3)
+save_show("02_year_char_mean_max.png")
+
+# (2-2) Words
+plt.figure(figsize=(10, 4))
+plt.plot(word_df["year"], word_df["mean"], marker="o", label="Mean (words)")
+plt.plot(word_df["year"], word_df["max"], marker="o", label="Max (words)")
+plt.title("Report Length by Year (Words): Mean & Max")
+plt.xlabel("Year")
+plt.ylabel("# of Words")
+plt.legend()
+plt.grid(True, alpha=0.3)
+save_show("03_year_word_mean_max.png")
+
+# ============================================================
+# (선택) 길이 비교용: Char vs Word 정규화 평균 트렌드
+# ============================================================
+df = (
+    char_df[["year", "mean", "max"]].rename(columns={"mean": "char_mean", "max": "char_max"})
+    .merge(
+        word_df[["year", "mean", "max"]].rename(columns={"mean": "word_mean", "max": "word_max"}),
+        on="year",
+        how="inner",
     )
-    parser.add_argument("--text_key", default="parsed_business_content")
-    parser.add_argument("--year_key", default="year")
-    parser.add_argument("--use_noun", action="store_true")
-    parser.add_argument(
-        "--sample_per_year",
-        type=int,
-        default=0,
-        help="0이면 전체, >0이면 연도별 샘플링"
-    )
+)
 
-    args = parser.parse_args()
+df["char_mean_norm"] = minmax(df["char_mean"])
+df["word_mean_norm"] = minmax(df["word_mean"])
 
-    # 1) load
-    df = load_all_jsonl(args.jsonl_dir, args.text_key, args.year_key)
+plt.figure(figsize=(10, 4))
+plt.plot(df["year"], df["char_mean_norm"], marker="o", label="Chars mean (norm)")
+plt.plot(df["year"], df["word_mean_norm"], marker="o", label="Words mean (norm)")
+plt.title("Yearly Trend Comparison (Normalized Means)")
+plt.xlabel("Year")
+plt.ylabel("Normalized value (0–1)")
+plt.legend()
+plt.grid(True, alpha=0.3)
+save_show("04_year_mean_trend_compare_norm.png")
 
-    # 2) 샘플링 (선택)
-    if args.sample_per_year > 0:
-        df = (
-            df.groupby(args.year_key, group_keys=False)
-              .apply(lambda x: x.sample(min(len(x), args.sample_per_year), random_state=42))
-              .reset_index(drop=True)
-        )
-        print(f"[INFO] Sampled rows: {len(df)}")
-
-    # 3) 길이 계산
-    df["char_len"] = df["text"].apply(len)
-    df["word_len"] = df["text"].apply(lambda x: len(x.split()))
-
-    # 4) 연도별 문장 길이
-    year_char_stats = (
-        df.groupby(args.year_key)["char_len"]
-          .agg(count="count", mean="mean", median="median", min="min", max="max")
-          .reset_index()
-          .sort_values(args.year_key)
-    )
-
-    year_word_stats = (
-        df.groupby(args.year_key)["word_len"]
-          .agg(mean="mean", median="median", min="min", max="max")
-          .reset_index()
-          .sort_values(args.year_key)
-    )
-
-    # 5) 명사 개수 (선택)
-    year_noun_stats = None
-    if args.use_noun:
-        analyzer = load_analyzer()
-        tqdm.pandas(desc="Counting nouns")
-        df["noun_cnt"] = df["text"].progress_apply(
-            lambda x: count_nouns(analyzer, x)
-        )
-
-        year_noun_stats = (
-            df.groupby(args.year_key)["noun_cnt"]
-              .agg(mean="mean", median="median", min="min", max="max", sum="sum")
-              .reset_index()
-              .sort_values(args.year_key)
-        )
-
-    # 6) 저장
-    os.makedirs("eda_outputs", exist_ok=True)
-    year_char_stats.to_csv("eda_outputs/year_char_stats.csv", index=False, encoding="utf-8-sig")
-    year_word_stats.to_csv("eda_outputs/year_word_stats.csv", index=False, encoding="utf-8-sig")
-
-    if year_noun_stats is not None:
-        year_noun_stats.to_csv(
-            "eda_outputs/year_noun_stats.csv",
-            index=False,
-            encoding="utf-8-sig"
-        )
-
-    # 7) 출력
-    print("\n=== Yearly Char Length ===")
-    print(year_char_stats.head(10).to_string(index=False))
-
-    print("\n=== Yearly Word Length ===")
-    print(year_word_stats.head(10).to_string(index=False))
-
-    if year_noun_stats is not None:
-        print("\n=== Yearly Noun Count ===")
-        print(year_noun_stats.head(10).to_string(index=False))
-
-    print("\n[DONE] Results saved to ./eda_outputs/")
-
-
-if __name__ == "__main__":
-    main()
+print("\n All figures saved to:", FIG_DIR)

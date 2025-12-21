@@ -87,12 +87,13 @@ tnic_edges_YYYY.jsonl           # 최종 TNIC 네트워크 엣지
 ### 1. 연도별 사업보고서 수 및 데이터 분포
 python eda_stats.py 실행
 분석에 사용된 사업보고서 데이터의 연도별 분포를 살펴본다.
-
+<image src="/workspaces/tnic-pipeline/Number of Business Report.png"/>
 
 
 ### 2. 연도별 사업보고서 텍스트 길이 특성 분석
 python eda_plot.py 실행
 사업보고서의 텍스트 길이는 기업의 공시 범위 및 정보 밀도를 간접적으로 반영한다.
+<image src="/workspaces/tnic-pipeline/Report Length by Year.png"/>
 
 
 
