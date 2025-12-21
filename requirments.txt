@@ -9,3 +9,4 @@ matplot
 pandas
 sentence_transformers
 tiktoken
+dotenv
