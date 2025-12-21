@@ -55,6 +55,19 @@ python -m src.main \
   --years 분석대상년도
 ```
 
+```bash
+# TFIDF 기반 기본 실행 예시
+python -m src.main \
+  --backend tfidf \
+  --input_dir data/final_jsonl_filled_v2 \
+  --output_dir output/tfidf \
+  --threshold 0.2132 \
+  --max_df_ratio 0.25 \
+  --tfidf_min_df 2 \
+  --tfidf_max_df 0.9 \
+  --years 2024
+```
+
 ### 생성 결과
 
 실행이 완료되면 연도별로 다음 파일들이 생성됩니다.
@@ -76,7 +89,7 @@ tnic_edges_YYYY.jsonl           # 최종 TNIC 네트워크 엣지
 python -m src.main \
   --backend tfidf \
   --input_dir data/final_jsonl_filled_v2 \
-  --output_dir output/v2/tfidf \
+  --output_dir output/tfidf \
   --threshold 0.2132 \
   --max_df_ratio 0.25 \
   --tfidf_min_df 2 \
@@ -95,7 +108,7 @@ python -m src.main \
 python -m src.main \
   --backend sbert \
   --input_dir data/final_jsonl_filled_v2 \
-  --output_dir output/v2/bert_document2 \
+  --output_dir output/bert_document2 \
   --aggregation mean \
   --bert_device cuda \
   --threshold 0.2 \
@@ -113,7 +126,7 @@ python -m src.main \
 python -m src.main \
   --backend openai \
   --input_dir data/final_jsonl_filled_v2 \
-  --output_dir output/v2/openai \
+  --output_dir output/openai \
   --threshold 0.2 \
   --years 2024
 ```
@@ -144,7 +157,7 @@ python -m src.main \
 
 ```bash
 python -m src.evaluate \
-  --output_dir output/v2/openai \
+  --output_dir output/openai \
   --backend openai \
   --threshold 0.2 \
   --years "2024-2024"
