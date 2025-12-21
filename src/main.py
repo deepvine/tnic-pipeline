@@ -24,7 +24,8 @@ from .similarity import (
 )
 from .network import build_tnic_edges
 from .evaluation import evaluate_year, save_eval_summary
-
+from dotenv import load_dotenv
+load_dotenv()
 
 MAX_CLEAN_INPUT = 1_000_000
 MAX_RAW_CHARS = 1_000_000
@@ -350,8 +351,7 @@ def process_year_sbert_or_openai(
         firm_names=corp_names,
         threshold=similarity_threshold,
         output_dir=output_dir,
-        backend="sbert_or_openai",
-        extra=extra_eval,
+        backend="sbert_or_openai"
     )
 
     print(f"✓ Completed year {year}")

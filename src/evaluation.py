@@ -64,8 +64,7 @@ def evaluate_year(
     firm_names: List[str],
     threshold: float,
     output_dir: Path,
-    backend: str,
-    extra: Dict[str, Any] | None = None,
+    backend: str
 ) -> Dict[str, Any]:
     """
     연도별 산출물 평가 요약을 JSON으로 저장합니다.
@@ -143,9 +142,6 @@ def evaluate_year(
         },
         "top_degree_nodes": top_nodes,
     }
-
-    if extra:
-        report["extra"] = extra
 
     out_path = output_dir / f"evaluation_{year}.json"
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
