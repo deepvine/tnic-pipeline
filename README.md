@@ -4,23 +4,30 @@
 tnic-pipeline/
  ├── src/
  │   ├── preprocess.py
+ │   ├── tfidf_encoder.py
+ │   ├── sbert_encoder.py
+ │   ├── chunked_openai_encoder.py
  │   ├── vectorize.py
  │   ├── similarity.py
+ │   ├── main.py
  │   └── network.py
+ ├── evaluation/
  ├── data/
  │   └── 10k_jsonl/
  ├── output/
- ├── notebooks/
+ │   ├── tfidf/
+ │   │   └── tnic_edges_2024.jsonl
+ │   ├── sbert/
+ │   │   └── tnic_edges_2024.jsonl
+ │   └── openai/
+ │       └── tnic_edges_2024.jsonl
+ ├── visualize_*.ipynb/
  └── README.md
 
 ```
 
 ## Prerequisites
-java installation
 ```
-apt-get update
-apt-get install -y openjdk-17-jdk
-
 pip install -r requirments.txt
 ```
 
